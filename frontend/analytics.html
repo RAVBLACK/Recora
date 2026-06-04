@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics | Recora</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="text-slate-900">
+    <main id="main-content">
+        <div class="flex items-start justify-between gap-4 mb-6">
+            <div>
+                <p class="text-sm font-bold uppercase tracking-widest text-slate-700">Hiring intelligence</p>
+                <h1 class="text-3xl font-extrabold">Analytics</h1>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="exportToPDF('main-content', 'analytics-report.pdf')" class="bg-white hover:bg-slate-50 text-slate-800 font-bold py-2 px-4 rounded-lg border border-slate-300 shadow-sm transition">
+                    Export as PDF
+                </button>
+                <button onclick="runQuickAction('Show hiring analytics')" class="bg-slate-950 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-bold">
+                    Ask Assistant
+                </button>
+            </div>
+        </div>
+
+        <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="glass p-5 rounded-lg"><div class="text-sm font-bold text-slate-500">Candidates</div><div id="metric-candidates" class="text-3xl font-extrabold text-slate-950">0</div></div>
+            <div class="glass p-5 rounded-lg"><div class="text-sm font-bold text-slate-500">Jobs</div><div id="metric-jobs" class="text-3xl font-extrabold text-slate-950">0</div></div>
+            <div class="glass p-5 rounded-lg"><div class="text-sm font-bold text-slate-500">Interviews</div><div id="metric-interviews" class="text-3xl font-extrabold text-slate-950">0</div></div>
+            <div class="glass p-5 rounded-lg"><div class="text-sm font-bold text-slate-500">Avg Score</div><div id="metric-score" class="text-3xl font-extrabold text-slate-950">0%</div></div>
+        </section>
+
+        <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div class="glass p-5 rounded-lg shadow-sm flex flex-col justify-center items-center">
+                <h2 class="text-lg font-extrabold mb-4 self-start">Candidates by Role</h2>
+                <div style="width: 220px; height: 220px;">
+                    <canvas id="rolesChart"></canvas>
+                </div>
+            </div>
+            <div class="glass p-5 rounded-lg shadow-sm flex flex-col justify-center items-center">
+                <h2 class="text-lg font-extrabold mb-4 self-start">Chart</h2>
+                <div style="width: 100%; height: 220px;">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/data-store.js"></script>
+    <script src="js/resume-parser.js"></script>
+    <script src="js/candidate-agent.js"></script>
+    <script src="js/job-agent.js"></script>
+    <script src="js/analytics-agent.js"></script>
+    <script src="js/ai-agent.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        let rolesChart;
+        let statusChart;
+
+        function renderAnalytics() {
+            const analytics = HRDataStore.getAnalytics();
+            document.getElementById("metric-candidates").textContent = analytics.totalCandidates;
+            document.getElementById("metric-jobs").textContent = analytics.totalJobs;
+            document.getElementById("metric-interviews").textContent = analytics.totalInterviews;
+            document.getElementById("metric-score").textContent = `${analytics.averageScore}%`;
+
+            const roleData = HRAnalyticsAgent.chartDataFromMap(analytics.roleDistribution, "No Candidates");
+            const statusData = HRAnalyticsAgent.chartDataFromMap(analytics.statusDistribution, "No Candidates");
+            const colors = ["#0f172a", "#334155", "#64748b", "#94a3b8", "#cbd5e1", "#f1f5f9"];
+
+            if (rolesChart) rolesChart.destroy();
+            rolesChart = new Chart(document.getElementById("rolesChart"), {
+                type: "doughnut",
+                data: { 
+                    labels: roleData.labels, 
+                    datasets: [{ 
+                        data: roleData.values, 
+                        backgroundColor: colors,
+                        borderColor: '#ffffff',
+                        borderWidth: 2
+                    }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { family: 'Inter' } } }
+                    }
+                }
+            });
+
+            if (statusChart) statusChart.destroy();
+            statusChart = new Chart(document.getElementById("statusChart"), {
+                type: "bar",
+                data: { 
+                    labels: statusData.labels, 
+                    datasets: [{ 
+                        label: "Candidates", 
+                        data: statusData.values, 
+                        backgroundColor: colors, 
+                        barThickness: 20,
+                        borderRadius: 4
+                    }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } }, 
+                    scales: { 
+                        y: { beginAtZero: true, ticks: { precision: 0 } },
+                        x: { grid: { display: false } }
+                    } 
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", renderAnalytics);
+        window.addEventListener("hr:data-updated", renderAnalytics);
+    </script>
+</body>
+</html>

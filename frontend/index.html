@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recora</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="text-slate-900">
+    <main id="main-content">
+        <section class="min-h-[calc(100vh-3rem)] flex items-center">
+            <div class="max-w-4xl">
+                <p class="text-sm font-bold uppercase tracking-widest text-slate-700 mb-4">Recora</p>
+                <h1 class="text-5xl md:text-6xl font-extrabold leading-tight text-slate-950 mb-6">ChatGPT for hiring teams.</h1>
+                <p class="text-lg text-slate-600 max-w-2xl mb-8">
+                    Use the assistant to screen resumes, rank candidates, draft job descriptions, plan interviews, and explain hiring analytics from local browser data.
+                </p>
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="runQuickAction('Rank candidates')" class="bg-slate-950 hover:bg-slate-800 text-white font-bold py-3 px-5 rounded-lg shadow-lg transition">
+                        Rank Candidates
+                    </button>
+                    <a href="upload.html" class="bg-white hover:bg-slate-50 text-slate-800 font-bold py-3 px-5 rounded-lg border border-slate-300 shadow-sm transition">
+                        Upload Resume
+                    </a>
+                    <button onclick="runQuickAction('Create backend developer JD')" class="bg-slate-950 hover:bg-slate-800 text-white font-bold py-3 px-5 rounded-lg shadow-lg transition">
+                        Create JD
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/data-store.js"></script>
+    <script src="js/resume-parser.js"></script>
+    <script src="js/candidate-agent.js"></script>
+    <script src="js/job-agent.js"></script>
+    <script src="js/analytics-agent.js"></script>
+    <script src="js/ai-agent.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

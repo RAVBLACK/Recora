@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jobs | Recora</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="text-slate-900">
+    <main id="main-content">
+        <div class="flex items-start justify-between gap-4 mb-6">
+            <div>
+                <p class="text-sm font-bold uppercase tracking-widest text-slate-700">Hiring roles</p>
+                <h1 class="text-3xl font-extrabold">Jobs</h1>
+            </div>
+            <button onclick="runQuickAction('Create backend developer JD')" class="bg-slate-950 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-bold">
+                Draft JD
+            </button>
+        </div>
+
+        <section class="grid grid-cols-1 xl:grid-cols-[0.8fr_1.2fr] gap-6">
+            <form class="glass p-5 rounded-lg shadow-sm space-y-4" onsubmit="createJob(event)">
+                <h2 class="text-lg font-extrabold">Add Job</h2>
+                <input id="job-title" class="w-full border border-slate-300 rounded-lg p-3" placeholder="Title" required>
+                <input id="job-department" class="w-full border border-slate-300 rounded-lg p-3" placeholder="Department" value="Engineering">
+                <input id="job-location" class="w-full border border-slate-300 rounded-lg p-3" placeholder="Location" value="Remote">
+                <input id="job-skills" class="w-full border border-slate-300 rounded-lg p-3" placeholder="Skills, comma separated" value="JavaScript, Python, SQL">
+                <textarea id="job-description" class="w-full border border-slate-300 rounded-lg p-3 min-h-28" placeholder="Description"></textarea>
+                <button class="w-full bg-slate-950 hover:bg-slate-800 text-white px-4 py-3 rounded-lg font-bold">Save Job</button>
+            </form>
+
+            <div id="jobs-list" class="grid grid-cols-1 gap-4"></div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/data-store.js"></script>
+    <script src="js/resume-parser.js"></script>
+    <script src="js/candidate-agent.js"></script>
+    <script src="js/job-agent.js"></script>
+    <script src="js/analytics-agent.js"></script>
+    <script src="js/ai-agent.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        function renderJobs() {
+            const jobs = HRDataStore.getJobs();
+            document.getElementById("jobs-list").innerHTML = jobs.map((job) => `
+                <article class="glass p-5 rounded-lg shadow-sm">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-extrabold">${escapeHtml(job.title)}</h2>
+                            <p class="text-slate-500 text-sm">${escapeHtml(job.department)} | ${escapeHtml(job.location)} | ${escapeHtml(job.status)}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="exportToPDF('main-content', 'job-${escapeAttribute(job.id)}.pdf', '${escapeAttribute(job.id)}')" class="bg-white text-slate-900 border border-slate-300 hover:bg-slate-50 text-sm px-3 py-1 font-bold rounded">Export</button>
+                            <button onclick="deleteJobEntry('${escapeAttribute(job.id)}')" class="btn-danger text-sm">Discard</button>
+                            <button onclick="runQuickAction('Find top candidates for ${escapeAttribute(job.title)}')" class="text-slate-950 font-bold text-sm">Match</button>
+                        </div>
+                    </div>
+                    <p class="text-sm text-slate-700 mt-3">${escapeHtml(job.description || "No description added.")}</p>
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        ${(job.skills || []).map((skill) => `<span class="px-2 py-1 rounded-md bg-slate-950 text-white text-xs font-bold">${escapeHtml(skill)}</span>`).join("")}
+                    </div>
+                </article>
+            `).join("");
+        }
+
+        function createJob(event) {
+            event.preventDefault();
+            HRJobAgent.createJobFromForm({
+                title: document.getElementById("job-title").value,
+                department: document.getElementById("job-department").value,
+                location: document.getElementById("job-location").value,
+                skills: document.getElementById("job-skills").value,
+                description: document.getElementById("job-description").value
+            });
+            event.target.reset();
+            document.getElementById("job-department").value = "Engineering";
+            document.getElementById("job-location").value = "Remote";
+            renderJobs();
+        }
+
+        function deleteJobEntry(id) {
+            HRDataStore.deleteJob(id);
+            renderJobs();
+        }
+
+        document.addEventListener("DOMContentLoaded", renderJobs);
+        window.addEventListener("hr:data-updated", renderJobs);
+    </script>
+</body>
+</html>

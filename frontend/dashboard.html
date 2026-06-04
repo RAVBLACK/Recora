@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | Recora</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="text-slate-900">
+    <main id="main-content">
+        <div class="flex items-start justify-between gap-4 mb-6">
+            <div>
+                <p class="text-sm font-bold uppercase tracking-widest text-slate-700">Recruitment workspace</p>
+                <h1 class="text-3xl font-extrabold">Dashboard</h1>
+            </div>
+            <button onclick="runQuickAction('Show hiring analytics')" class="bg-slate-950 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-bold">
+                Ask Assistant
+            </button>
+        </div>
+
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="glass p-5 rounded-lg shadow-sm">
+                <div class="text-slate-500 text-sm font-bold mb-1">Total Candidates</div>
+                <div class="text-4xl font-extrabold text-slate-950" id="stat-candidates">0</div>
+            </div>
+            <div class="glass p-5 rounded-lg shadow-sm">
+                <div class="text-slate-500 text-sm font-bold mb-1">Active Jobs</div>
+                <div class="text-4xl font-extrabold text-slate-950" id="stat-jobs">0</div>
+            </div>
+            <div class="glass p-5 rounded-lg shadow-sm">
+                <div class="text-slate-500 text-sm font-bold mb-1">Upcoming Interviews</div>
+                <div class="text-4xl font-extrabold text-slate-950" id="stat-interviews">0</div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-6">
+            <div class="glass rounded-lg shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+                    <h2 class="text-lg font-extrabold">Candidates</h2>
+                    <a href="upload.html" class="text-slate-950 font-bold text-sm">Upload PDF</a>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-slate-500 bg-white/60 text-sm">
+                                <th class="p-4 font-bold">Name</th>
+                                <th class="p-4 font-bold">Role</th>
+                                <th class="p-4 font-bold">Score</th>
+                                <th class="p-4 font-bold">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-candidates" class="text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="glass rounded-lg shadow-sm p-5">
+                <h2 class="text-lg font-extrabold mb-4">Chart</h2>
+                <canvas id="dashboardChart" height="250"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/data-store.js"></script>
+    <script src="js/resume-parser.js"></script>
+    <script src="js/candidate-agent.js"></script>
+    <script src="js/job-agent.js"></script>
+    <script src="js/analytics-agent.js"></script>
+    <script src="js/ai-agent.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        let dashboardChart;
+
+        function renderDashboard() {
+            const analytics = HRDataStore.getAnalytics();
+            document.getElementById("stat-candidates").textContent = analytics.totalCandidates;
+            document.getElementById("stat-jobs").textContent = analytics.totalJobs;
+            document.getElementById("stat-interviews").textContent = analytics.totalInterviews;
+
+            const tbody = document.getElementById("dashboard-candidates");
+            const candidates = HRDataStore.getCandidates().sort((a, b) => Number(b.score) - Number(a.score));
+            tbody.innerHTML = candidates.length ? candidates.map((candidate) => `
+                <tr class="border-t border-slate-100 hover:bg-white/70">
+                    <td class="p-4 font-bold">${escapeHtml(candidate.name)}</td>
+                    <td class="p-4">${escapeHtml(candidate.role)}</td>
+                    <td class="p-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-24 h-2 rounded-full bg-slate-200">
+                                <div class="h-2 rounded-full bg-slate-950" style="width:${Number(candidate.score || 0)}%"></div>
+                            </div>
+                            <span>${Number(candidate.score || 0)}%</span>
+                        </div>
+                    </td>
+                    <td class="p-4">${escapeHtml(candidate.status)}</td>
+                </tr>
+            `).join("") : `<tr><td colspan="4" class="p-6 text-center text-slate-500">No candidates yet. Upload a PDF resume to populate the dashboard.</td></tr>`;
+
+            const chartData = HRAnalyticsAgent.chartDataFromMap(analytics.statusDistribution, "No Candidates");
+            const colors = ["#0f172a", "#334155", "#64748b", "#94a3b8", "#cbd5e1", "#f1f5f9"];
+            
+            const ctx = document.getElementById("dashboardChart");
+            if (dashboardChart) dashboardChart.destroy();
+            dashboardChart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: "Candidates",
+                        data: chartData.values,
+                        backgroundColor: colors,
+                        barThickness: 20,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        y: { beginAtZero: true, ticks: { precision: 0 } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", renderDashboard);
+        window.addEventListener("hr:data-updated", renderDashboard);
+    </script>
+</body>
+</html>

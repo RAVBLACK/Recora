@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule | Recora</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="text-slate-900">
+    <main id="main-content">
+        <div class="flex items-start justify-between gap-4 mb-6">
+            <div>
+                <p class="text-sm font-bold uppercase tracking-widest text-slate-700">Interview coordination</p>
+                <h1 class="text-3xl font-extrabold">Schedule</h1>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="exportToPDF('main-content', 'schedule.pdf')" class="bg-white hover:bg-slate-50 text-slate-800 font-bold py-2 px-4 rounded-lg border border-slate-300 shadow-sm transition">
+                    Export as PDF
+                </button>
+                <button onclick="runQuickAction('Schedule interview')" class="bg-slate-950 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-bold">
+                    Ask Scheduler
+                </button>
+            </div>
+        </div>
+
+        <section class="grid grid-cols-1 xl:grid-cols-[0.8fr_1.2fr] gap-6">
+            <form class="glass p-5 rounded-lg shadow-sm space-y-4" onsubmit="createInterview(event)">
+                <h2 class="text-lg font-extrabold">New Interview</h2>
+                <select id="schedule-candidate" class="w-full border border-slate-300 rounded-lg p-3"></select>
+                <input id="schedule-date" type="date" class="w-full border border-slate-300 rounded-lg p-3" required>
+                <input id="schedule-time" type="time" class="w-full border border-slate-300 rounded-lg p-3" value="10:00" required>
+                <input id="schedule-interviewer" class="w-full border border-slate-300 rounded-lg p-3" value="Hiring Team" placeholder="Interviewer">
+                <button class="w-full bg-slate-950 hover:bg-slate-800 text-white px-4 py-3 rounded-lg font-bold">Save Interview</button>
+            </form>
+
+            <div class="glass rounded-lg shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-200">
+                    <h2 class="text-lg font-extrabold">Upcoming Interviews</h2>
+                </div>
+                <div id="interview-list" class="divide-y divide-slate-100"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/data-store.js"></script>
+    <script src="js/resume-parser.js"></script>
+    <script src="js/candidate-agent.js"></script>
+    <script src="js/job-agent.js"></script>
+    <script src="js/analytics-agent.js"></script>
+    <script src="js/ai-agent.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        function renderSchedulePage() {
+            const candidates = HRDataStore.getCandidates();
+            document.getElementById("schedule-candidate").innerHTML = candidates.length
+                ? candidates.map((candidate) => `<option value="${escapeAttribute(candidate.id)}">${escapeHtml(candidate.name)} - ${escapeHtml(candidate.role)}</option>`).join("")
+                : `<option value="">No candidates available</option>`;
+
+            const interviews = HRDataStore.getInterviews().sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+            document.getElementById("interview-list").innerHTML = interviews.length ? interviews.map((interview) => `
+                <article class="p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <h3 class="font-extrabold">${escapeHtml(interview.candidateName)}</h3>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold text-slate-950">${escapeHtml(interview.status)}</span>
+                            <button onclick="deleteInterviewEntry('${escapeAttribute(interview.id)}')" class="btn-danger text-sm">Discard</button>
+                        </div>
+                    </div>
+                    <p class="text-sm text-slate-600">${escapeHtml(interview.role || "Role pending")} | ${escapeHtml(interview.date)} at ${escapeHtml(interview.time)}</p>
+                    <p class="text-sm text-slate-500">Interviewer: ${escapeHtml(interview.interviewer)}</p>
+                </article>
+            `).join("") : `<div class="p-6 text-slate-500 text-center">No interviews scheduled yet.</div>`;
+        }
+
+        function createInterview(event) {
+            event.preventDefault();
+            const candidate = HRDataStore.getCandidates().find((item) => item.id === document.getElementById("schedule-candidate").value);
+            if (!candidate) return;
+            HRDataStore.saveInterview({
+                candidateId: candidate.id,
+                candidateName: candidate.name,
+                role: candidate.role,
+                date: document.getElementById("schedule-date").value,
+                time: document.getElementById("schedule-time").value,
+                interviewer: document.getElementById("schedule-interviewer").value,
+                notes: "Created from schedule page."
+            });
+            renderSchedulePage();
+            renderSchedulePage();
+        }
+
+        function deleteInterviewEntry(id) {
+            HRDataStore.deleteInterview(id);
+            renderSchedulePage();
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById("schedule-date").value = new Date().toISOString().slice(0, 10);
+            renderSchedulePage();
+        });
+        window.addEventListener("hr:data-updated", renderSchedulePage);
+    </script>
+</body>
+</html>

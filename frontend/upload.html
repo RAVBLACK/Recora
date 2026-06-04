@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Resumes | Recora</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="text-slate-900">
+    <main id="main-content">
+        <div class="mb-6">
+            <p class="text-sm font-bold uppercase tracking-widest text-slate-700">PDF to candidate profile</p>
+            <h1 class="text-3xl font-extrabold">Upload Resume</h1>
+        </div>
+
+        <section class="grid grid-cols-1 xl:grid-cols-[1fr_0.9fr] gap-6">
+            <div class="glass p-6 rounded-lg shadow-sm">
+                <label class="block text-sm font-bold text-slate-700 mb-2" for="job-select">Target Job</label>
+                <select id="job-select" class="w-full border border-slate-300 rounded-lg p-3 bg-white mb-6"></select>
+
+                <div class="border-2 border-dashed border-slate-300 rounded-lg p-10 text-center bg-white/60 hover:bg-white transition cursor-pointer" onclick="document.getElementById('file-upload').click()">
+                    <div class="mx-auto h-12 w-12 rounded-lg bg-slate-950 text-white grid place-items-center font-extrabold mb-4">PDF</div>
+                    <p class="text-slate-700 font-bold">Click to upload a PDF resume</p>
+                    <p class="text-xs text-slate-500 mt-2">Text is extracted in the browser and saved to localStorage.</p>
+                    <input id="file-upload" type="file" class="hidden" accept="application/pdf,.pdf" onchange="handleFile(this)">
+                </div>
+
+                <div id="upload-status" class="hidden rounded-lg p-4 mt-5 text-sm"></div>
+            </div>
+
+            <div class="glass p-6 rounded-lg shadow-sm">
+                <h2 class="text-lg font-extrabold mb-4">Latest Parsed Candidate</h2>
+                <div id="latest-candidate" class="text-sm text-slate-600">No resume uploaded in this browser yet.</div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/data-store.js"></script>
+    <script src="js/resume-parser.js"></script>
+    <script src="js/candidate-agent.js"></script>
+    <script src="js/job-agent.js"></script>
+    <script src="js/analytics-agent.js"></script>
+    <script src="js/ai-agent.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        function renderJobSelect() {
+            const select = document.getElementById("job-select");
+            select.innerHTML = HRDataStore.getJobs().map((job) => (
+                `<option value="${escapeAttribute(job.id)}">${escapeHtml(job.title)} - ${escapeHtml(job.department || "Hiring")}</option>`
+            )).join("");
+        }
+
+        function renderLatestCandidate(candidate) {
+            const latest = candidate || [...HRDataStore.getCandidates()].sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))[0];
+            const el = document.getElementById("latest-candidate");
+            if (!latest) {
+                el.textContent = "No resume uploaded in this browser yet.";
+                return;
+            }
+
+            el.innerHTML = `
+                <div class="space-y-3">
+                    <div>
+                        <div class="text-xl font-extrabold text-slate-950">${escapeHtml(latest.name)}</div>
+                        <div class="text-slate-500">${escapeHtml(latest.role)} | ${Number(latest.score || 0)}% | ${escapeHtml(latest.status)}</div>
+                    </div>
+                    <p>${escapeHtml(latest.summary)}</p>
+                    <div class="flex flex-wrap gap-2">
+                        ${(latest.skills || []).map((skill) => `<span class="px-2 py-1 rounded-md bg-slate-950 text-white font-bold text-xs">${escapeHtml(skill)}</span>`).join("")}
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button onclick="deleteCandidateEntry('${escapeAttribute(latest.id)}')" class="btn-danger text-sm px-4 py-2 font-bold">Discard</button>
+                        <button onclick="runQuickAction('Summarize latest resume')" class="bg-slate-950 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-bold">Ask Assistant</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function deleteCandidateEntry(id) {
+            HRDataStore.deleteCandidate(id);
+            renderLatestCandidate();
+            document.getElementById("upload-status").className = "hidden";
+        }
+
+        async function handleFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const statusEl = document.getElementById("upload-status");
+            statusEl.className = "rounded-lg p-4 mt-5 text-sm bg-slate-100 text-slate-950";
+            statusEl.textContent = "Extracting PDF text and creating candidate profile...";
+
+            try {
+                const text = await HRResumeParser.parsePdf(file);
+                if (!text || text.length < 40) {
+                    throw new Error("No readable text was found in this PDF.");
+                }
+
+                const candidate = HRCandidateAgent.createCandidateFromResume(text, file.name, document.getElementById("job-select").value);
+                HRDataStore.saveCandidate(candidate);
+                HRDataStore.saveEvaluation({
+                    candidateId: candidate.id,
+                    candidateName: candidate.name,
+                    score: candidate.score,
+                    recommendation: candidate.score >= 85 ? "Shortlist" : "Review",
+                    notes: candidate.summary
+                });
+
+                statusEl.className = "rounded-lg p-4 mt-5 text-sm bg-green-100 text-green-800";
+                statusEl.innerHTML = `<strong>Saved.</strong> ${escapeHtml(candidate.name)} was classified as <strong>${escapeHtml(candidate.role)}</strong> with a <strong>${candidate.score}%</strong> score.`;
+                renderLatestCandidate(candidate);
+            } catch (error) {
+                statusEl.className = "rounded-lg p-4 mt-5 text-sm bg-red-100 text-red-800";
+                statusEl.textContent = error.message || "Unable to parse this PDF.";
+            } finally {
+                input.value = "";
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            renderJobSelect();
+            renderLatestCandidate();
+        });
+        window.addEventListener("hr:data-updated", () => {
+            renderJobSelect();
+            renderLatestCandidate();
+        });
+    </script>
+</body>
+</html>
