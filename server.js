@@ -10,6 +10,10 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
+app.get('/', (req, res) => {
+    res.send('Recora Backend is running!');
+});
+
 app.post('/api/chat', async (req, res) => {
     try {
         const { model, messages, temperature } = req.body;
