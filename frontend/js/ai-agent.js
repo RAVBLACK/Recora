@@ -136,7 +136,7 @@ class HRAssistantAgent {
     }
 
     async callGroq(payload) {
-        const response = await fetch("https://recora-backend-ex8q.onrender.com/api/chat", {
+        const response = await fetch("/api/chat", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
